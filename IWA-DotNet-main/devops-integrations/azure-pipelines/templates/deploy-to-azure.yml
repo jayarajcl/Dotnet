@@ -1,0 +1,40 @@
+# File: templates/deploy-to-azure.yml
+
+# defaults for any parameters that aren't specified
+parameters: 
+- name: 'pool'
+  type: object
+  default: {}
+- name: workingDirectory
+  default: ''
+- name: dotnetVersion
+  default: '6.x'
+- name: azureSubscription
+  default: 'Azure-IWA'
+- name: appType
+  default: 'webAppLinux'
+- name: webAppName
+  default: 'iwadotnet'
+
+jobs:
+- job: Build
+  pool: ${{ parameters.pool }}
+  steps: 
+  - task: UseDotNet@2
+    inputs:
+      version: ${{ parameters.dotnetVersion }}
+  - task: DotNetCoreCLI@2
+    displayName: 'Publish Web App'
+    inputs:
+      command: publish
+      publishWebProjects: true
+      modifyOutputPath: false
+      workingDirectory: ${{ parameters.workingDirectory }}
+  - task: AzureWebApp@1
+    displayName: 'Deploy Web App'
+    inputs:
+      ConnectionType: 'AzureRM'
+      azureSubscription: ${{ parameters.azureSubscription }}
+      appType: ${ parameters.appType }}
+      appName: ${{ parameters.webAppName }}
+      package: '$(System.DefaultWorkingDirectory)/**/*.zip'
