@@ -37,15 +37,52 @@ namespace MicroFocus.InsecureWebApp.Controllers
                 // Create the streams used for encryption.
                 using (MemoryStream msEncrypt = new MemoryStream())
                 {
-                    using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
-                        {
-                            //Write all data to the stream.
-                            swEncrypt.Write(plainText);
-                        }
-                        encrypted = msEncrypt.ToArray();
-                    }
+                   using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+{
+    using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
+    {
+        string canonicalPath = Path.GetFullPath(baseDirectory);
+        if (!Directory.Exists(canonicalPath))
+        {
+            throw new DirectoryNotFoundException("Base directory does not exist.");
+        }
+
+        string validatedFileName = ValidateFileName(fileName);
+        string fullPath = Path.Combine(canonicalPath, validatedFileName);
+        string canonicalFullPath = Path.GetFullPath(fullPath);
+
+        if (!canonicalFullPath.StartsWith(canonicalPath))
+        {
+            throw new UnauthorizedAccessException("Access to the path is denied.");
+        }
+
+        swEncrypt.Write(plainText);
+    }
+    encrypted = msEncrypt.ToArray();
+}
+
+private string ValidateFileName(string fileName)
+{
+    if (string.IsNullOrWhiteSpace(fileName) || fileName.Length > 255)
+    {
+        throw new ArgumentException("Invalid file name.");
+    }
+
+    string pattern = @"^[a-zA-Z0-9_.-]+$";
+    if (!Regex.IsMatch(fileName, pattern))
+    {
+        throw new ArgumentException("File name contains invalid characters.");
+    }
+
+    string[] allowedExtensions = { ".txt", ".csv", ".log" };
+    string fileExtension = Path.GetExtension(fileName);
+    if (!allowedExtensions.Contains(fileExtension))
+    {
+        throw new ArgumentException("File extension is not allowed.");
+    }
+
+    return fileName;
+}
                 }
             }
 
