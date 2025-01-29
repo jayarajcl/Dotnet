@@ -68,35 +68,43 @@ namespace MicroFocus.InsecureWebApp.Controllers
     bool blnResult = false;
     try
     {
-                using (var stream = new FileStream(sPath, FileMode.Create))
+        string baseDirectory = Path.GetFullPath("C:\\SecureBaseDirectory");
+        string fullPath = Path.GetFullPath(sPath);
+
+        if (!fullPath.StartsWith(baseDirectory))
+            throw new UnauthorizedAccessException("Access to the path is denied.");
+
+        if (!Directory.Exists(baseDirectory))
+            throw new DirectoryNotFoundException("Base directory does not exist.");
+
+        string fileName = Path.GetFileName(sPath);
+        if (!Regex.IsMatch(fileName, @"^[a-zA-Z0-9]+\.(txt|jpg|png)$"))
+            throw new InvalidDataException("Invalid file name or extension.");
+
+        using (var stream = new FileStream(fullPath, FileMode.Create))
         {
             await file.CopyToAsync(stream);
         }
         blnResult = true;
     }
-    catch (UnauthorizedAccessException ex)
+    catch (UnauthorizedAccessException)
     {
-        // Log unauthorized access attempt
         throw;
     }
-    catch (DirectoryNotFoundException ex)
+    catch (DirectoryNotFoundException)
     {
-        // Log directory not found
         throw;
     }
-    catch (InvalidDataException ex)
+    catch (InvalidDataException)
     {
-        // Log invalid data
         throw;
     }
     catch (Exception ex)
     {
-        // Log general exceptions
         throw new FileLoadException(ex.Message);
     }
     return blnResult;
 }
-
         [HttpPost("UpdateXml")]
         public async Task<bool> UpdateXml(string sFileName, string xmlContent)
         {
