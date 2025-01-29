@@ -63,22 +63,39 @@ namespace MicroFocus.InsecureWebApp.Controllers
         }
 
         [HttpPost("UploadFile")]
-        public async Task<bool> UploadFile(IFormFile file, string sPath)
-        {
-            bool blnResult = false;
-            try
-            {
+       public async Task<bool> UploadFile(IFormFile file, string sPath)
+{
+    bool blnResult = false;
+    try
+    {
                 using (var stream = new FileStream(sPath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-                blnResult = true;
-            }catch (Exception ex)
-            {
-                throw new FileLoadException(ex.Message);
-            }
-            return blnResult;
+        {
+            await file.CopyToAsync(stream);
         }
+        blnResult = true;
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        // Log unauthorized access attempt
+        throw;
+    }
+    catch (DirectoryNotFoundException ex)
+    {
+        // Log directory not found
+        throw;
+    }
+    catch (InvalidDataException ex)
+    {
+        // Log invalid data
+        throw;
+    }
+    catch (Exception ex)
+    {
+        // Log general exceptions
+        throw new FileLoadException(ex.Message);
+    }
+    return blnResult;
+}
 
         [HttpPost("UpdateXml")]
         public async Task<bool> UpdateXml(string sFileName, string xmlContent)
@@ -101,16 +118,36 @@ namespace MicroFocus.InsecureWebApp.Controllers
 
         [HttpGet("DownloadFile")]
         public FileResult DownloadFile(string fileName)
-        {
-            //Build the File Path.
-            string path = Path.Combine(Directory.GetCurrentDirectory(), "Files"+ Path.DirectorySeparatorChar +"Prescriptions" + Path.DirectorySeparatorChar) + fileName;
+{
+    string baseDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Files", "Prescriptions");
+    if (!Directory.Exists(baseDirectory))
+    {
+        throw new DirectoryNotFoundException("The base directory does not exist.");
+    }
 
-            //Read the File data into Byte Array.
-            byte[] bytes = System.IO.File.ReadAllBytes(path);
+    string[] allowedExtensions = { ".pdf", ".txt", ".docx" };
+    string fileExtension = Path.GetExtension(fileName);
 
-            //Send the File to Download.
-            return File(bytes, "application/octet-stream", fileName);
-        }
+    if (!Regex.IsMatch(fileName, @"^[a-zA-Z0-9]+\.[a-zA-Z0-9]+$") || !allowedExtensions.Contains(fileExtension))
+    {
+        throw new ArgumentException("Invalid file name or extension.");
+    }
+
+    string fullPath = Path.GetFullPath(Path.Combine(baseDirectory, fileName));
+
+    if (!fullPath.StartsWith(baseDirectory))
+    {
+        throw new UnauthorizedAccessException("Access to the path is denied.");
+    }
+
+    if (!System.IO.File.Exists(fullPath))
+    {
+        throw new FileNotFoundException("The file does not exist.");
+    }
+
+    byte[] bytes = System.IO.File.ReadAllBytes(fullPath);
+    return File(bytes, "application/octet-stream", fileName);
+}
 
     }
 }
