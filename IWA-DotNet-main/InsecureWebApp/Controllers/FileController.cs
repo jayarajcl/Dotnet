@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using ICSharpCode.SharpZipLib.Zip;
 using ICSharpCode.SharpZipLib.Tar;
 using System.IO;
@@ -14,34 +14,45 @@ namespace MicroFocus.InsecureWebApp.Controllers
         private const string PRESCRIPTION_LOCATION = "Files\\Prescriptions\\";
 
         [HttpPost("UploadFile")]
-        public async Task<IActionResult> UploadFile(IFormFile file, string zipFileName, string targetDir = "")
-        {
-            string sPres_Location = "Files" + Path.DirectorySeparatorChar + "Prescriptions" + Path.DirectorySeparatorChar;
-            string sDir = Path.Combine(Directory.GetCurrentDirectory(), sPres_Location);
-            string sPath = Path.Combine(Directory.GetCurrentDirectory(), targetDir) + Path.DirectorySeparatorChar +  zipFileName;
-            FastZip fastZip = new FastZip();
-            string fileFilter = null;
-            string sFinalDir = string.Empty;
+       public async Task<IActionResult> UploadFile(IFormFile file, string zipFileName, string targetDir = "")
+{
+    string baseDirectory = Path.Combine(Directory.GetCurrentDirectory(), "Files", "Prescriptions");
+    if (!Directory.Exists(baseDirectory))
+    {
+        return BadRequest("Base directory does not exist.");
+    }
 
+    if (string.IsNullOrEmpty(zipFileName) || !Regex.IsMatch(zipFileName, @"^[a-zA-Z0-9]+\.(zip)$"))
+    {
+        return BadRequest("Invalid file name.");
+    }
 
-            using (var stream = new FileStream(sDir + zipFileName, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
+    string zipFilePath = Path.Combine(baseDirectory, zipFileName);
+    using (var stream = new FileStream(zipFilePath, FileMode.Create))
+    {
+        await file.CopyToAsync(stream);
+    }
 
-                sFinalDir = stream.Name;
-            }
-            if (string.IsNullOrEmpty(targetDir))
-            {
-                targetDir = sPres_Location;
-            }
-            fastZip.ExtractZip(sDir + zipFileName, targetDir, fileFilter);
+    if (string.IsNullOrEmpty(targetDir))
+    {
+        targetDir = baseDirectory;
+    }
 
-            sFinalDir = Directory.GetParent(Path.GetFullPath(sPath)).FullName;
-            
-            return Ok("File extracted at : " + sFinalDir);
+    string targetDirectory = Path.GetFullPath(Path.Combine(baseDirectory, targetDir));
+    if (!targetDirectory.StartsWith(baseDirectory))
+    {
+        return BadRequest("Invalid target directory.");
+    }
 
-            //Response.Headers.Add("Content-Disposition", "attachment; filename="+ zipFileName +".zip");
-            //return new FileContentResult(JsonSerializer.SerializeToUtf8Bytes(zipFileName), "application/json");
-        }
+    if (!Directory.Exists(targetDirectory))
+    {
+        return BadRequest("Target directory does not exist.");
+    }
+
+    FastZip fastZip = new FastZip();
+    fastZip.ExtractZip(zipFilePath, targetDirectory, null);
+
+    return Ok("File extracted at : " + targetDirectory);
+}
     }
 }
