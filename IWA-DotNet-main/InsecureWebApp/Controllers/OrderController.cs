@@ -79,15 +79,29 @@ namespace MicroFocus.InsecureWebApp.Controllers
             return _order.Discount;
          }
 
-        [HttpPost("ReadOrderFromFile")]
-        public List<tmpOrder> ReadOrderFromFile()
-        {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Files"+ Path.DirectorySeparatorChar +"Order.file");
+       
+[HttpPost("ReadOrderFromFile")]
+public List<tmpOrder> ReadOrderFromFile()
+{
+    string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Files" + Path.DirectorySeparatorChar + "Order.file");
+    byte[] fileBytes = System.IO.File.ReadAllBytes(filePath);
 
-            BinaryFormatter binaryFormatter = new BinaryFormatter();
-            MemoryStream memoryStream = new MemoryStream(System.IO.File.ReadAllBytes(filePath));
-            List<tmpOrder> obj = (List<tmpOrder>)binaryFormatter.Deserialize(memoryStream);
-            return obj;
+    using (SHA256 sha256 = SHA256.Create())
+    {
+        byte[] hash = sha256.ComputeHash(fileBytes);
+        string hashString = Convert.ToBase64String(hash);
+
+        // Verify the hash with a known good hash value
+        string knownGoodHash = "knownGoodHashValue"; // This should be securely stored and retrieved
+        if (hashString != knownGoodHash)
+        {
+            throw new SecurityException("File integrity check failed.");
         }
+    }
+
+    string jsonString = Encoding.UTF8.GetString(fileBytes);
+    List<tmpOrder> obj = JsonSerializer.Deserialize<List<tmpOrder>>(jsonString);
+    return obj;
+}
     }
 }
