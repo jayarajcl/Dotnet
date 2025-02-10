@@ -22,12 +22,12 @@ namespace MicroFocus.InsecureWebApp.Controllers
             _context = context;
         }
 
-        [HttpGet]
-        public ContentResult GetSearchText(string sSearchText)
-        {
-
-            return Content("Prescription Search By : " + sSearchText, "text/html");
-        }
+      [HttpGet]
+public ContentResult GetSearchText(string sSearchText)
+{
+    string sanitizedSearchText = Encoder.HtmlEncode(sSearchText);
+    return Content("Prescription Search By : " + sanitizedSearchText, "text/html");
+}
 
         [HttpGet("GetPrescription")]
         public List<Models.Prescription> GetPrescription(string sSearchText)
